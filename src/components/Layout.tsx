@@ -171,16 +171,8 @@ export function Layout() {
       <PullToRefresh />
       <header className="border-b border-stone-200 bg-white dark:border-stone-700 dark:bg-stone-900">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-          {/* Logo — always visible */}
-          <Link
-            to="/dashboard"
-            className="text-lg font-semibold text-emerald-600 dark:text-emerald-500"
-          >
-            HomeGuru
-          </Link>
-
           {/* Desktop nav (left of right-side actions) — hidden on mobile */}
-          <nav className="ml-6 hidden flex-1 items-center gap-1 md:flex">
+          <nav className="hidden flex-1 items-center gap-1 md:flex">
             <NavLink to="/dashboard" className={navLinkClasses}>
               Panel
             </NavLink>

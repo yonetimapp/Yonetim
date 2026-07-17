@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { PushNotificationsCard } from '@/components/PushNotificationsCard';
+import { NotificationPreferencesList } from '@/components/NotificationPreferencesList';
 import { formatRole } from '@/lib/utils';
 
 export function ProfilePage() {
@@ -120,6 +121,15 @@ export function ProfilePage() {
 
       <PushNotificationsCard />
 
+      <Card>
+        <h2 className="text-lg font-semibold text-stone-900 dark:text-stone-100">
+          Bildirim Ayarları
+        </h2>
+        <p className="mb-3 mt-1 text-sm text-stone-600 dark:text-stone-300">
+          Hangi olaylar için cihazınıza anlık bildirim gönderileceğini seçin.
+        </p>
+        <NotificationPreferencesList />
+      </Card>
     </div>
   );
 }

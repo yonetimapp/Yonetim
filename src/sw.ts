@@ -72,11 +72,11 @@ self.addEventListener('push', (event) => {
     try {
       payload = event.data.json() as PushPayload;
     } catch {
-      payload = { title: 'HomeGuru', body: event.data.text() };
+      payload = { title: 'Yönetim', body: event.data.text() };
     }
   }
 
-  const title = payload.title || 'HomeGuru';
+  const title = payload.title || 'Yönetim';
   const options: NotificationOptions = {
     body: payload.body || '',
     icon: payload.icon || 'icons/icon-512.png',

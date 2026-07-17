@@ -1,20 +1,31 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { updateOwnFullName } from '@/lib/queries/profile';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Input } from '@/components/ui/Input';
 import { PushNotificationsCard } from '@/components/PushNotificationsCard';
 import { NotificationPreferencesList } from '@/components/NotificationPreferencesList';
 import { formatRole } from '@/lib/utils';
 
 export function ProfilePage() {
-  const { profile, user, refreshProfile } = useAuth();
+  const { profile, user, refreshProfile, signOut } = useAuth();
+  const navigate = useNavigate();
 
   const [fullName, setFullName] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successAt, setSuccessAt] = useState<number | null>(null);
+  const [confirmSignOut, setConfirmSignOut] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+
+  const handleSignOut = async () => {
+    setSigningOut(true);
+    await signOut();
+    navigate('/login', { replace: true });
+  };
 
   // Seed the input once the profile arrives.
   useEffect(() => {
@@ -111,13 +122,34 @@ export function ProfilePage() {
             </p>
           )}
 
-          <div className="flex justify-end">
+          {/* type="button" on Çıkış is load-bearing: inside a form the default
+              is submit, which would trigger Kaydet instead. */}
+          <div className="flex items-center justify-between">
+            <Button
+              type="button"
+              variant="danger"
+              onClick={() => setConfirmSignOut(true)}
+            >
+              Çıkış Yap
+            </Button>
             <Button type="submit" loading={saving}>
               Kaydet
             </Button>
           </div>
         </form>
       </Card>
+
+      <ConfirmDialog
+        open={confirmSignOut}
+        title="Çıkış yapılsın mı?"
+        description="Oturumunuz kapatılacak ve giriş ekranına yönlendirileceksiniz."
+        confirmLabel="Çıkış Yap"
+        cancelLabel="Vazgeç"
+        destructive
+        loading={signingOut}
+        onConfirm={handleSignOut}
+        onCancel={() => setConfirmSignOut(false)}
+      />
 
       <PushNotificationsCard />
 
@@ -130,6 +162,24 @@ export function ProfilePage() {
         </p>
         <NotificationPreferencesList />
       </Card>
+
+      {/* Yedekler — SUPER_ADMIN only, same gate as the /settings/backups route
+          (and the bucket's RLS). Others would only hit a redirect. */}
+      {profile.role === 'SUPER_ADMIN' && (
+        <Card>
+          <h2 className="text-lg font-semibold text-stone-900 dark:text-stone-100">
+            Yedekler
+          </h2>
+          <p className="mb-3 mt-1 text-sm text-stone-600 dark:text-stone-300">
+            Günlük bulut yedeklerini görüntüleyin ve indirin.
+          </p>
+          <Link to="/settings/backups">
+            <Button type="button" variant="secondary">
+              Yedeklere Git
+            </Button>
+          </Link>
+        </Card>
+      )}
     </div>
   );
 }

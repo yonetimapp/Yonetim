@@ -66,8 +66,25 @@ export async function renameRegion(id: string, name: string): Promise<Region> {
   return data as Region;
 }
 
-/** SUPER_ADMIN only. Refuses the default region, or one still holding data. */
-export async function deleteRegion(id: string): Promise<void> {
-  const { error } = await supabase.rpc('delete_region', { p_id: id });
+/**
+ * SUPER_ADMIN only. Refuses the default region, a region whose kasa has
+ * movements, or one with active staff. Mülks do NOT block: their tie is broken
+ * and they are parked on the default region — the returned names are those
+ * mülks, so the UI can tell the Yönetici which ones need a new bölge picked.
+ */
+export async function deleteRegion(id: string): Promise<string[]> {
+  const { data, error } = await supabase.rpc('delete_region', { p_id: id });
   if (error) throw new Error(error.message);
+  return (data as string[] | null) ?? [];
+}
+
+/** Mülk count per region name — feeds the delete dialog's "N mülk taşınacak" warning. */
+export async function countPropertiesByRegion(): Promise<Record<string, number>> {
+  const { data, error } = await supabase.from('properties').select('region');
+  if (error) throw new Error(error.message);
+  const counts: Record<string, number> = {};
+  for (const row of (data ?? []) as { region: string }[]) {
+    counts[row.region] = (counts[row.region] ?? 0) + 1;
+  }
+  return counts;
 }

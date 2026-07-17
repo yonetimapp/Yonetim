@@ -163,11 +163,17 @@ export function FinanceTabs() {
         </NavLink>
       )}
       {/* Bölgeler is structural admin — creating a region also creates its kasa,
-          so it stays with the Yönetici alone (matches role/region assignment). */}
+          so it stays with the Yönetici alone (matches role/region assignment).
+          Icon-only (owner request): the label lives in aria-label + title, and
+          twMerge lets px-2 beat tabClass's px-3 so the pill stays compact. */}
       {profile?.role === 'SUPER_ADMIN' && (
-        <NavLink to="/finance/regions" className={tabClass}>
+        <NavLink
+          to="/finance/regions"
+          className={(s) => cn(tabClass(s), 'px-2')}
+          aria-label="Bölgeler"
+          title="Bölgeler"
+        >
           <RegionIcon />
-          Bölgeler
         </NavLink>
       )}
     </div>

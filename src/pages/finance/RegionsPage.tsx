@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import {
   listRegionsWithKasa,
+  countPropertiesByRegion,
   createRegion,
   renameRegion,
   deleteRegion,
@@ -17,12 +18,15 @@ import { formatTRY } from '@/lib/utils';
  * Bölgeler — the Yönetici's region admin (SUPER_ADMIN only, route-guarded).
  *
  * Each region owns exactly one kasa, created with it by the create_region RPC.
- * The default region ('Genel') can be renamed but never deleted, and a region
- * still holding mülk / personel / gider / kasa hareketi is refused by the RPC —
- * we surface that Turkish error as-is rather than second-guessing it here.
+ * The default region can be renamed but never deleted. Deleting a region
+ * (migration 136): kasa HAREKETİ or active personel block it — the RPC's
+ * Turkish refusal is surfaced as-is. Mülks do NOT block: the delete breaks
+ * their tie, parks them on the default region, and the returned names feed the
+ * "bölgeyi yeniden seçin" notice below.
  */
 export function RegionsPage() {
   const [regions, setRegions] = useState<RegionWithKasa[] | null>(null);
+  const [propertyCounts, setPropertyCounts] = useState<Record<string, number>>({});
   const [error, setError] = useState<string | null>(null);
 
   const [newName, setNewName] = useState('');
@@ -37,10 +41,15 @@ export function RegionsPage() {
   const [toDelete, setToDelete] = useState<RegionWithKasa | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  /** Mülk names unassigned by the last delete — they now need a new bölge. */
+  const [movedMulks, setMovedMulks] = useState<string[] | null>(null);
 
   const reload = () =>
-    listRegionsWithKasa()
-      .then(setRegions)
+    Promise.all([listRegionsWithKasa(), countPropertiesByRegion()])
+      .then(([rs, counts]) => {
+        setRegions(rs);
+        setPropertyCounts(counts);
+      })
       .catch((e) => setError(e instanceof Error ? e.message : 'Bölgeler yüklenemedi'));
 
   useEffect(() => {
@@ -90,8 +99,9 @@ export function RegionsPage() {
     setDeleting(true);
     setDeleteError(null);
     try {
-      await deleteRegion(toDelete.id);
+      const moved = await deleteRegion(toDelete.id);
       setToDelete(null);
+      setMovedMulks(moved.length > 0 ? moved : null);
       await reload();
     } catch (err) {
       setDeleteError(err instanceof Error ? err.message : 'Bölge silinemedi');
@@ -99,6 +109,8 @@ export function RegionsPage() {
       setDeleting(false);
     }
   };
+
+  const defaultRegionName = regions?.find((r) => r.is_default)?.name ?? 'Genel';
 
   return (
     <div className="space-y-6">
@@ -138,6 +150,23 @@ export function RegionsPage() {
           </p>
         )}
       </Card>
+
+      {/* Post-delete re-pick notice: these mülks were parked on the default
+          region and each needs its bölge chosen again (Mülk Düzenle). */}
+      {movedMulks && (
+        <Card className="border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/40">
+          <div className="flex items-start justify-between gap-3">
+            <p className="text-sm text-amber-800 dark:text-amber-300">
+              Silinen bölgedeki {movedMulks.length} mülk{' '}
+              <strong>{defaultRegionName}</strong> bölgesine taşındı. Bu mülkler için
+              bölgeyi yeniden seçin: <strong>{movedMulks.join(', ')}</strong>
+            </p>
+            <Button variant="ghost" size="sm" onClick={() => setMovedMulks(null)}>
+              Tamam
+            </Button>
+          </div>
+        </Card>
+      )}
 
       {error && (
         <Card className="border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/40">
@@ -259,9 +288,16 @@ export function RegionsPage() {
               <p>
                 <strong>{toDelete.name}</strong> bölgesi ve kasası silinir.
               </p>
+              {(propertyCounts[toDelete.name] ?? 0) > 0 && (
+                <p className="mt-2 text-sm text-amber-700 dark:text-amber-400">
+                  Bu bölgedeki {propertyCounts[toDelete.name]} mülk{' '}
+                  <strong>{defaultRegionName}</strong> bölgesine taşınacak — silme
+                  sonrası bu mülkler için bölgeyi yeniden seçmelisiniz.
+                </p>
+              )}
               <p className="mt-2 text-sm text-stone-600 dark:text-stone-300">
-                Bölgeye bağlı mülk, personel, gider veya kasa hareketi varsa silme
-                reddedilir — önce onları başka bir bölgeye taşıyın.
+                Kasasında hareket olan veya atanmış personeli bulunan bir bölge
+                silinemez.
               </p>
             </>
           ) : null

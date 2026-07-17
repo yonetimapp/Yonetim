@@ -58,7 +58,7 @@ git push -u origin main
 
 Follow [SETUP.md](SETUP.md) §1–§5 against the **new** project:
 
-- enable `pgcrypto`, `btree_gist`, `pg_cron`;
+- enable `pgcrypto`, `btree_gist`, `pg_cron`, `pg_net`;
 - run **every** migration in `supabase/migrations/` in numeric order — either by
   pasting them in the SQL editor or, easier, with the CLI:
   `supabase link --project-ref <ref>` then `supabase db push`. The whole chain

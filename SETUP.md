@@ -27,6 +27,8 @@ Step-by-step first-time setup. Goes from "fresh clone" to "logged into the runni
 - `pgcrypto`   — sensitive-field encryption
 - `btree_gist` — required for the reservation EXCLUDE constraint
 - `pg_cron`    — scheduled jobs (nightly auto-debit)
+- `pg_net`     — async HTTP from the DB (push notifications). Migration 137 also
+  creates it itself, but enabling it here keeps every extension in one place.
 
 ---
 

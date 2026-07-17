@@ -1177,10 +1177,14 @@ export type Database = {
         Args: { p_id: string; p_name: string };
         Returns: Database['public']['Tables']['regions']['Row'];
       };
-      /** SUPER_ADMIN only — refuses the default region or one still in use. */
+      /**
+       * SUPER_ADMIN only — refuses the default region, a kasa with movements,
+       * or active staff. Mülk ties are broken instead (parked on the default
+       * region); returns the moved mülk names for the re-pick notice.
+       */
       delete_region: {
         Args: { p_id: string };
-        Returns: undefined;
+        Returns: string[];
       };
       update_own_full_name: {
         Args: { p_full_name: string };

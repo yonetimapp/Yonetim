@@ -16,37 +16,37 @@ interface Props {
  */
 const ROLES: { name: string; can: string; cannot: string }[] = [
   {
-    name: 'Yönetici (SUPER_ADMIN)',
+    name: 'Yönetici',
     can: 'Her şey: tüm bölgeler, kasa ve finans, personel/rol/bölge atama, bölge ve mülk yönetimi, çöp kutusu, denetim kaydı, yedekler.',
     cannot: '—',
   },
   {
-    name: 'Alt Yönetici (PROPERTY_MANAGER)',
+    name: 'Alt Yönetici',
     can: 'Rezervasyon ve misafir işlemleri, kasa ve giderler, tahsilat onayları, maaş/avans ödeme, temizlik, raporlar. Bölge kısıtlıysa yalnızca kendi bölgesinde.',
     cannot: 'Rol/bölge atama, personel maaşı düzenleme, mülk ekleme/silme, çöp kutusu, denetim kaydı, yedekler.',
   },
   {
-    name: 'Personel (YETKILI)',
+    name: 'Personel',
     can: 'Kendi bölgesinde tam operasyon: rezervasyon, misafir, birim düzenleme, temizlik, tahsilat (onaya düşer), gider girişi (onaya düşer).',
     cannot: 'Kasa, onaylar, borçlar, personel yönetimi. Girdiği tahsilat/gider bir yönetici onaylayana dek kasaya işlemez.',
   },
   {
-    name: 'Resepsiyon (RECEPTION)',
+    name: 'Resepsiyon',
     can: 'Rezervasyon ve misafir işlemleri; otel tipi mülklerde tahsilat.',
     cannot: 'Kasa ve giderler, temizlik durumu, personel, daire tipi mülklerde tahsilat.',
   },
   {
-    name: 'Temizlik (HOUSEKEEPING)',
+    name: 'Temizlik',
     can: 'Temizlik listesi ve durum güncelleme, sorun bildirme; daire tipi mülklerde teslimatta tahsilat (onaya düşer).',
     cannot: 'Rezervasyon/misafir düzenleme, kasa, giderler, otel tipi mülklerde tahsilat.',
   },
   {
-    name: 'Teknik Personel (TEKNIK_PERSONEL)',
+    name: 'Teknik Personel',
     can: 'TÜM bölgelerde rezervasyon listesini görme ve sorun bildirme. Bölge ayarı her zaman "tüm bölgeler"dir, kapatılamaz.',
     cannot: 'Temizlik durumu değiştirme, misafir bilgileri, mülkler, takvim/müsaitlik, kasa ve finans.',
   },
   {
-    name: 'Onay Bekliyor (PENDING)',
+    name: 'Onay Bekliyor',
     can: 'Hiçbir şey — yeni kayıt olan herkes bu rolle başlar ve hiçbir veri göremez.',
     cannot: 'Yönetici bir rol + bölge atayana kadar uygulama kilitlidir.',
   },

@@ -2,7 +2,7 @@
 -- Yönetim PMS — RLS / finance / region smoke test
 -- =============================================================================
 -- WHAT: an automated, self-rolling-back check of the invariants that must hold
---       once the 001–135 migration chain has been applied to a fresh project.
+--       once the 001–137 migration chain has been applied to a fresh project.
 --       It covers the re-release changes (regions, 7 roles, PENDING signup, photo
 --       caps, Google removal, backups bucket) plus the money-routing, recurring
 --       gider and isolation rules those changes touch.
@@ -262,9 +262,10 @@ SELECT pg_temp.refuses(format($sql$ SELECT delete_region(%L) $sql$,
   (SELECT id FROM regions WHERE is_default)),
   'B2  delete_region refuses the default region');
 
-SELECT pg_temp.refuses(format($sql$ SELECT delete_region(%L) $sql$,
-  (SELECT id FROM regions WHERE name = 'SmokeB')),
-  'B3  delete_region refuses a region that still holds a mülk');
+-- (There is no B3 any more: since migration 136, a mülk-holding region is
+-- deletable — the mülks' ties break and they move to the default region. That
+-- behaviour, plus the kasa-movement and active-staff refusals, is covered in
+-- section G with a throwaway region, so SmokeB survives for sections C/D.)
 
 -- A rename fans out through the ON UPDATE CASCADE FK and re-labels the kasa.
 SELECT rename_region((SELECT id FROM regions WHERE name = 'SmokeB'), 'SmokeB2');
@@ -541,6 +542,70 @@ SELECT pg_temp.ok(
 SELECT pg_temp.refuses(format($sql$ SELECT post_recurring_instance_now(%L) $sql$,
   (SELECT id FROM t_tpl_future)),
   'F4  Kasaya işle refuses a düzenli that starts later');
+
+-- =============================================================================
+-- G. Bölge silme (migration 136) — kasa movement blocks; mülk ties break
+-- =============================================================================
+
+SELECT pg_temp.act_as(pg_temp.uid('admin'));
+
+-- G1 — SmokeA's kasa has movements (section D posted giderler into it), so the
+-- region must refuse deletion with the kasa-hareketi message.
+SELECT pg_temp.refuses(format($sql$ SELECT delete_region(%L) $sql$,
+  (SELECT id FROM regions WHERE name = 'SmokeA')),
+  'G1  a region whose kasa has movements cannot be deleted');
+
+-- G2 — a mülk does NOT block: the delete breaks its tie, parks it on the
+-- default region, and returns its name for the UI's re-pick notice. A pending
+-- gider in the region must move with it (no kasa movement involved).
+SELECT create_region('SmokeSil');
+INSERT INTO properties (name, type, region)
+VALUES ('Smoke Sil Mülk', 'APARTMENT', 'SmokeSil');
+
+CREATE TEMP TABLE t_exp_sil AS
+  SELECT * FROM record_expense(
+    NULL::uuid, 'Smoke Sil Gider', 50::numeric, 'bölgeyle taşınmalı',
+    current_date, false, true, NULL::smallint, 'SmokeSil'::text);
+
+CREATE TEMP TABLE t_del AS
+  SELECT delete_region((SELECT id FROM regions WHERE name = 'SmokeSil')) AS moved;
+
+SELECT pg_temp.ok(
+  (SELECT moved FROM t_del) = ARRAY['Smoke Sil Mülk']::text[],
+  'G2a deleting a mülk-holding region succeeds and returns the mülk names');
+
+SELECT pg_temp.ok(
+  (SELECT region FROM properties WHERE name = 'Smoke Sil Mülk')
+  = (SELECT name FROM regions WHERE is_default),
+  'G2b the freed mülk is parked on the DEFAULT region');
+
+SELECT pg_temp.ok(
+  (SELECT region FROM expenses WHERE id = (SELECT id FROM t_exp_sil))
+  = (SELECT name FROM regions WHERE is_default),
+  'G2c the region''s pending gider moved to the default region with it');
+
+-- G3 — the region and its kasa are fully gone.
+SELECT pg_temp.ok(
+  NOT EXISTS (SELECT 1 FROM regions WHERE name = 'SmokeSil')
+  AND NOT EXISTS (SELECT 1 FROM cash_accounts WHERE region = 'SmokeSil'),
+  'G3  the deleted region and its kasa no longer exist');
+
+-- G4 — ACTIVE staff still block (their home region routes maaş/avans money).
+SELECT create_region('SmokeStaffBolge');
+UPDATE staff_profiles SET region = 'SmokeStaffBolge'
+ WHERE user_id = pg_temp.uid('pending');
+
+SELECT pg_temp.refuses(format($sql$ SELECT delete_region(%L) $sql$,
+  (SELECT id FROM regions WHERE name = 'SmokeStaffBolge')),
+  'G4  a region with active staff cannot be deleted');
+
+UPDATE staff_profiles SET region = 'Genel'
+ WHERE user_id = pg_temp.uid('pending');
+
+-- G5 — the default region itself can never be deleted.
+SELECT pg_temp.refuses(format($sql$ SELECT delete_region(%L) $sql$,
+  (SELECT id FROM regions WHERE is_default)),
+  'G5  the default region cannot be deleted');
 
 -- =============================================================================
 

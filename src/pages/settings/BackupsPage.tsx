@@ -120,9 +120,7 @@ export function BackupsPage() {
       {days && days.length === 0 && (
         <Card>
           <p className="text-center text-sm text-stone-600 dark:text-stone-300">
-            Henüz yedek yok. Yedekler her gece otomatik yüklenir — kurulum için
-            SETUP.md §10&apos;daki depolama gizli anahtarlarının GitHub&apos;a eklenmiş
-            olması gerekir.
+            Henüz yedek yok. Yedekler her gece otomatik yüklenir.
           </p>
         </Card>
       )}

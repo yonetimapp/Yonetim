@@ -1,19 +1,15 @@
 import { useEffect, useState } from 'react';
-import { Outlet, Link, NavLink, useNavigate } from 'react-router-dom';
+import { Outlet, Link, NavLink } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { can, isTeknikPersonel } from '@/lib/rbac';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { PendingApprovalPage } from '@/pages/PendingApprovalPage';
 import { cn, formatRole } from '@/lib/utils';
 
 export function Layout() {
-  const { profile, signOut } = useAuth();
-  const navigate = useNavigate();
+  const { profile } = useAuth();
 
-  const [confirmSignOut, setConfirmSignOut] = useState(false);
-  const [signingOut, setSigningOut] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
   // Close the mobile drawer on Esc + lock body scroll while open.
@@ -30,12 +26,6 @@ export function Layout() {
       document.body.style.overflow = prev;
     };
   }, [mobileOpen]);
-
-  const handleSignOut = async () => {
-    setSigningOut(true);
-    await signOut();
-    navigate('/login', { replace: true });
-  };
 
   // Desktop NavLink — inline horizontal pill.
   const navLinkClasses = ({ isActive }: { isActive: boolean }) =>
@@ -109,25 +99,8 @@ export function Layout() {
     </svg>
   );
 
-  // Yedekler — the nightly cloud-backup browser (SUPER_ADMIN, like audit/trash).
-  const backupIcon = (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M12 3v10" />
-      <path d="M8 9l4 4 4-4" />
-      <path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" />
-    </svg>
-  );
+  // (Yedekler + Çıkış moved to the Profil page — owner request 2026-07-18; the
+  // header keeps only audit/trash/theme.)
 
 
   // PENDING signups have no role permissions and are in no RLS allow-list —
@@ -208,28 +181,7 @@ export function Layout() {
                 {trashIcon}
               </NavLink>
             )}
-            {profile?.role === 'SUPER_ADMIN' && (
-              <NavLink
-                to="/settings/backups"
-                aria-label="Yedekler"
-                title="Yedekler"
-                className={iconLinkClasses}
-              >
-                {backupIcon}
-              </NavLink>
-            )}
             <ThemeToggle />
-            <button
-              type="button"
-              onClick={() => setConfirmSignOut(true)}
-              className={cn(
-                'rounded-md border px-3 py-1 text-sm transition-colors',
-                'border-stone-300 text-stone-700 hover:bg-stone-100',
-                'dark:border-stone-600 dark:text-stone-200 dark:hover:bg-stone-800',
-              )}
-            >
-              Çıkış
-            </button>
           </div>
 
           {/* Mobile hamburger — visible only on mobile.
@@ -385,33 +337,8 @@ export function Layout() {
                     {trashIcon}
                   </NavLink>
                 )}
-                {profile?.role === 'SUPER_ADMIN' && (
-                  <NavLink
-                    to="/settings/backups"
-                    aria-label="Yedekler"
-                    title="Yedekler"
-                    onClick={closeMobile}
-                    className={iconLinkClasses}
-                  >
-                    {backupIcon}
-                  </NavLink>
-                )}
                 <ThemeToggle />
               </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setMobileOpen(false);
-                  setConfirmSignOut(true);
-                }}
-                className={cn(
-                  'rounded-md border px-3 py-1.5 text-sm transition-colors',
-                  'border-stone-300 text-stone-700 hover:bg-stone-100',
-                  'dark:border-stone-600 dark:text-stone-200 dark:hover:bg-stone-800',
-                )}
-              >
-                Çıkış
-              </button>
             </div>
           </aside>
         </div>
@@ -420,18 +347,6 @@ export function Layout() {
       <main className="mx-auto max-w-6xl px-4 py-6">
         <Outlet />
       </main>
-
-      <ConfirmDialog
-        open={confirmSignOut}
-        title="Çıkış yapılsın mı?"
-        description="Oturumunuz kapatılacak ve giriş ekranına yönlendirileceksiniz."
-        confirmLabel="Çıkış Yap"
-        cancelLabel="Vazgeç"
-        destructive
-        loading={signingOut}
-        onConfirm={handleSignOut}
-        onCancel={() => setConfirmSignOut(false)}
-      />
     </div>
   );
 }

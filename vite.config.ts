@@ -72,9 +72,9 @@ export default defineConfig({
       filename: 'sw.ts',
       includeAssets: ['icons/icon-512.png'],
       manifest: {
-        name: 'HomeGuru PMS',
-        short_name: 'HomeGuru',
-        description: 'Property management for HomeGuru',
+        name: 'Yönetim',
+        short_name: 'Yönetim',
+        description: 'Mülk ve rezervasyon yönetimi',
         theme_color: '#059669',
         background_color: '#ffffff',
         display: 'standalone',

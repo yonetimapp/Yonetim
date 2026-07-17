@@ -1,0 +1,24 @@
+-- =============================================================================
+-- Yönetim PMS — migration 005 (neutralized)
+-- =============================================================================
+-- This file used to seed HomeGuru DEVELOPMENT sample data: 2 properties,
+-- 4 units, 6 per-property cash accounts, and a default WhatsApp template.
+--
+-- It is now a deliberate NO-OP. Two reasons:
+--   1. The re-release operator starts with a clean database — no sample data.
+--   2. The sample kasa rows broke `supabase db push`: migration 036 only
+--      creates its single 'Genel Kasa' when NO cash_accounts exist (clean-slate
+--      assumption), so the 6 seeded per-property kasa survived to migration
+--      094, whose one-kasa-per-region unique index then failed on 6 rows with
+--      the same NULL region. The manual SQL-editor path always said "skip 005";
+--      db push cannot skip files, so the file itself must be inert.
+--
+-- The file must remain present (and keep this name) so the migration numbering
+-- and any already-recorded `schema_migrations` history stay consistent.
+--
+-- The one-time Vault key setup that used to be documented here lives in
+-- RERELEASE.md / SETUP.md:
+--   SELECT vault.create_secret('<strong-random-key>', 'pms_encryption_key');
+-- =============================================================================
+
+SELECT 1;

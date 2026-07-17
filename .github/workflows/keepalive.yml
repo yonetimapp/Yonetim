@@ -1,0 +1,27 @@
+name: Supabase keepalive
+
+# Prevents the Supabase free-tier project from auto-pausing after 7 days
+# of inactivity. Pings the REST API daily — a wide margin so a delayed or
+# skipped GitHub-scheduled run can't let the project lapse.
+
+on:
+  schedule:
+    - cron: '0 9 * * *'  # daily at 09:00 UTC
+  workflow_dispatch:
+
+# Minimum permissions — keepalive only makes external HTTP calls,
+# doesn't need any GitHub access.
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase REST endpoint
+        run: |
+          curl -fsS "$URL/rest/v1/message_templates?select=id&limit=1" \
+            -H "apikey: $KEY" \
+            -H "Authorization: Bearer $KEY"
+        env:
+          URL: ${{ secrets.VITE_SUPABASE_URL }}
+          KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}

@@ -1,0 +1,58 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  /* Defense-in-depth: no element should ever push the page horizontally on
+     mobile. Individual scrollable areas (calendar Gantt, code blocks, tables
+     used at sm+) opt-in to overflow-x-auto on their own wrappers. */
+  html,
+  body {
+    overflow-x: hidden;
+    max-width: 100vw;
+  }
+  body {
+    @apply bg-stone-50 text-stone-900 dark:bg-stone-950 dark:text-stone-100;
+    font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+    -webkit-tap-highlight-color: transparent;
+    /* iOS PWA: status bar overlays the page (black-translucent style) and the
+       home indicator eats the bottom 34px. Add safe-area padding so the
+       header isn't behind the notch and the bottom CTA isn't under the bar. */
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* iOS Safari auto-zooms into any input whose font-size is < 16px when the
+     user taps to focus. That zoom is sticky and disorients reception staff
+     filling out forms. Force form controls to 16px on mobile. */
+  @media (max-width: 767px) {
+    input,
+    select,
+    textarea {
+      font-size: 16px;
+    }
+  }
+
+  /* Hide native number input spinners (they look terrible in dark mode
+     and conflict with our minimal design). Users can still type or use
+     keyboard arrow keys to increment. */
+  input[type='number']::-webkit-outer-spin-button,
+  input[type='number']::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type='number'] {
+    -moz-appearance: textfield;
+  }
+
+  /* Honor break-word for long unbroken strings (emails, URLs, IDs) so they
+     never push their container's width on mobile. */
+  body {
+    overflow-wrap: anywhere;
+  }
+}

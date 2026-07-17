@@ -1,0 +1,169 @@
+name: Database backup
+
+# Logical backup of the Supabase Postgres database. The free tier has NO
+# automated backups, so this is the only safety net until the project moves
+# to the Pro plan (managed daily backups).
+#
+# Two destinations, in this order so a failure in the second never costs the
+# first:
+#   1. GitHub artifact — GPG AES-256 encrypted pg_dump, 30-day retention.
+#      KVKK note: the dump contains guest PII (phone/email/address) plus the
+#      encrypted TC/passport columns. It is encrypted ON THE RUNNER before
+#      upload — GitHub only ever stores ciphertext, and the passphrase never
+#      leaves the BACKUP_GPG_PASSPHRASE secret. Because this repo is public,
+#      treat the artifact as semi-public: the encryption is the security
+#      boundary, so use a long, random passphrase and never commit it anywhere.
+#   2. Supabase Storage `backups` bucket (migration 129) — the in-app Yedekler
+#      screen. One folder per day (YYYY-MM-DD/) holding the raw db.dump plus a
+#      CSV per public table; folders older than 14 days are pruned. The bucket
+#      is strictly private (service-key writes, SUPER_ADMIN-only reads), which
+#      is the documented KVKK boundary for these files. Steps 2's uploads are
+#      skipped gracefully until the SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY
+#      secrets are configured (SETUP.md §10).
+
+on:
+  schedule:
+    - cron: '30 2 * * *'   # daily at 02:30 UTC (05:30 Istanbul, low activity)
+  workflow_dispatch:
+
+# upload-artifact uses the Actions runtime token, not GITHUB_TOKEN, so no
+# repo permissions are needed.
+permissions: {}
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Timestamp
+        id: ts
+        run: |
+          echo "stamp=$(date -u +'%Y%m%d-%H%M')" >> "$GITHUB_OUTPUT"
+          echo "day=$(date -u +'%Y-%m-%d')" >> "$GITHUB_OUTPUT"
+
+      - name: Dump database (custom format, compressed)
+        run: |
+          docker run --rm \
+            -e PGCONN="$SUPABASE_DB_URL" \
+            postgres:17-alpine \
+            sh -c 'pg_dump "$PGCONN" -Fc' > backup.dump
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+
+      - name: Encrypt (GPG AES-256)
+        run: |
+          gpg --batch --yes --pinentry-mode loopback \
+            --passphrase "$BACKUP_GPG_PASSPHRASE" \
+            --cipher-algo AES256 --symmetric \
+            -o backup.dump.gpg backup.dump
+        env:
+          BACKUP_GPG_PASSPHRASE: ${{ secrets.BACKUP_GPG_PASSPHRASE }}
+
+      - name: Upload encrypted backup
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-backup-${{ steps.ts.outputs.stamp }}
+          path: backup.dump.gpg
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Export per-table CSVs
+        run: |
+          mkdir -p csv
+          cat > export_csv.sh <<'EOF'
+          set -e
+          tables=$(psql "$PGCONN" -At -v ON_ERROR_STOP=1 \
+            -c "select tablename from pg_tables where schemaname = 'public' order by tablename")
+          for t in $tables; do
+            psql "$PGCONN" -v ON_ERROR_STOP=1 \
+              -c "\copy (select * from public.\"$t\") to 'csv/$t.csv' with (format csv, header)"
+          done
+          EOF
+          docker run --rm -v "$PWD:/work" -w /work \
+            -e PGCONN="$SUPABASE_DB_URL" \
+            postgres:17-alpine sh export_csv.sh
+          ls -l csv
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+
+      # Formula-injection guard: these CSVs get opened in Excel/Sheets, where a
+      # cell starting with = + - @ (or tab/CR) executes as a formula — e.g. a
+      # guest "name" of =HYPERLINK(...). Prefix such cells with an apostrophe
+      # (Excel's treat-as-text marker). Pure numbers (incl. negatives) are left
+      # untouched so amount columns stay numeric and re-importable.
+      - name: Neutralize formula-leading CSV cells
+        run: |
+          python3 - <<'EOF'
+          import csv, glob, re
+          num = re.compile(r'^-?\d+(\.\d+)?$')
+          lead = re.compile(r'^[=+\-@\t\r]')
+          files = glob.glob('csv/*.csv')
+          for path in files:
+              with open(path, newline='', encoding='utf-8') as f:
+                  rows = list(csv.reader(f))
+              fixed = [
+                  ["'" + c if lead.match(c) and not num.match(c) else c for c in row]
+                  for row in rows
+              ]
+              with open(path, 'w', newline='', encoding='utf-8') as f:
+                  csv.writer(f).writerows(fixed)
+          print(f'neutralized {len(files)} CSV files')
+          EOF
+
+      - name: Upload to backups bucket (Yedekler screen)
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SERVICE_KEY" ]; then
+            echo "SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY not configured — skipping bucket upload (SETUP.md §10)."
+            exit 0
+          fi
+          day="${{ steps.ts.outputs.day }}"
+          upload() {
+            curl -sfS -X POST "$SUPABASE_URL/storage/v1/object/backups/$1" \
+              -H "Authorization: Bearer $SERVICE_KEY" \
+              -H "apikey: $SERVICE_KEY" \
+              -H "Content-Type: $3" \
+              -H "x-upsert: true" \
+              --data-binary @"$2" > /dev/null
+            echo "uploaded backups/$1"
+          }
+          upload "$day/db.dump" backup.dump application/octet-stream
+          for f in csv/*.csv; do
+            [ -e "$f" ] || continue
+            upload "$day/$(basename "$f")" "$f" text/csv
+          done
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+      - name: Prune bucket folders older than 14 days
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SERVICE_KEY" ]; then
+            echo "Storage secrets not configured — skipping prune."
+            exit 0
+          fi
+          cutoff=$(date -u -d '14 days ago' +'%Y-%m-%d')
+          api="$SUPABASE_URL/storage/v1"
+          folders=$(curl -sfS -X POST "$api/object/list/backups" \
+            -H "Authorization: Bearer $SERVICE_KEY" -H "apikey: $SERVICE_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{"prefix":"","limit":1000}' | jq -r '.[] | select(.id == null) | .name')
+          for d in $folders; do
+            case "$d" in
+              [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]) ;;
+              *) continue ;;
+            esac
+            if [ "$d" \< "$cutoff" ]; then
+              payload=$(curl -sfS -X POST "$api/object/list/backups" \
+                -H "Authorization: Bearer $SERVICE_KEY" -H "apikey: $SERVICE_KEY" \
+                -H "Content-Type: application/json" \
+                -d "{\"prefix\":\"$d\",\"limit\":1000}" \
+                | jq -c --arg d "$d" '{prefixes: [.[] | $d + "/" + .name]}')
+              echo "pruning backups/$d"
+              curl -sfS -X DELETE "$api/object/backups" \
+                -H "Authorization: Bearer $SERVICE_KEY" -H "apikey: $SERVICE_KEY" \
+                -H "Content-Type: application/json" \
+                -d "$payload" > /dev/null
+            fi
+          done
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}

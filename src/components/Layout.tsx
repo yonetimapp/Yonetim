@@ -192,7 +192,7 @@ export function Layout() {
             onClick={() => setMobileOpen(true)}
             aria-label="Menüyü aç"
             aria-expanded={mobileOpen}
-            className="inline-flex h-11 w-11 items-center justify-center rounded-lg bg-emerald-600 text-white shadow-sm transition-colors hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:focus:ring-offset-stone-900 md:hidden"
+            className="ml-auto inline-flex h-11 w-11 items-center justify-center rounded-lg bg-emerald-600 text-white shadow-sm transition-colors hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:focus:ring-offset-stone-900 md:hidden"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"

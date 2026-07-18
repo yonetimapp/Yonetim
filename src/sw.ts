@@ -1,6 +1,6 @@
 /// <reference lib="webworker" />
 /*
- * HomeGuru PMS — Service Worker.
+ * Yönetim — Service Worker.
  *
  * Single SW file owned by us (vite-plugin-pwa's injectManifest strategy).
  * Combines:
@@ -99,7 +99,7 @@ self.addEventListener('notificationclick', (event) => {
         type: 'window',
         includeUncontrolled: true,
       });
-      // Focus an existing HomeGuru tab and tell it where to go — much cheaper
+      // Focus an existing app tab and tell it where to go — much cheaper
       // than opening a duplicate window.
       for (const client of allClients) {
         if ('focus' in client) {

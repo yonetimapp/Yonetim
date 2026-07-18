@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from '@/hooks/useAuth';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { Layout } from '@/components/Layout';
+import { PushNavigationListener } from '@/components/PushNavigationListener';
 import { PwaUpdatePrompt } from '@/components/PwaUpdatePrompt';
 import { LoginPage } from '@/pages/LoginPage';
 import { DashboardPage } from '@/pages/DashboardPage';
@@ -56,6 +57,7 @@ export default function App() {
   return (
     <AuthProvider>
       <PwaUpdatePrompt />
+      <PushNavigationListener />
       <Routes>
         <Route path="/login" element={<LoginPage />} />
 

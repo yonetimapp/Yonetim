@@ -112,9 +112,14 @@ self.addEventListener('notificationclick', (event) => {
           return;
         }
       }
-      // No tab open — open one at the deep link.
+      // No tab open — open one at the deep link, resolved under the SW scope.
+      // The app lives on a subpath on GitHub Pages (/<repo>/), so a
+      // root-absolute '/finance/pending' would escape the app and land on the
+      // 404 page; prefixing the scope path keeps it inside. A root deployment
+      // (scope '/') reduces to the plain path.
       if (self.clients.openWindow) {
-        await self.clients.openWindow(targetUrl);
+        const scopePath = new URL(self.registration.scope).pathname.replace(/\/$/, '');
+        await self.clients.openWindow(scopePath + targetUrl);
       }
     })(),
   );
